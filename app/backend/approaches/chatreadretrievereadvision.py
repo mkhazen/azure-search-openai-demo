@@ -62,7 +62,7 @@ class ChatReadRetrieveReadVisionApproach(ChatApproach):
     @property
     def system_message_chat_conversation(self):
         return """
-        You are an intelligent assistant helping analyze the Annual Financial Report of Contoso Ltd., The documents contain text, graphs, tables and images.
+        You are an intelligent assistant helping analyze, translate and extracting information from legal documents from different countries such as Algeria and Morocco, The documents contain different languages Arabic, French and English text, graphs, tables and images. The documents contain text, graphs, tables and images.
         Each image source has the file name in the top left corner of the image with coordinates (10,10) pixels and is in the format SourceFileName:<file_name>
         Each text source starts in a new line and has the file name followed by colon and the actual information
         Always include the source name from the image or text for each fact you use in the response in the format: [filename]

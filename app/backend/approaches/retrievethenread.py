@@ -16,33 +16,62 @@ AZURE_STORAGE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER")
 
 class RetrieveThenReadApproach(Approach):
     """
-    Simple retrieve-then-read implementation, using the AI Search and OpenAI APIs directly. It first retrieves
+    Simple retrieve-then-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
     top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion
     (answer) with that prompt.
     """
 
-    system_chat_template = (
-        "You are an intelligent assistant helping Contoso Inc employees with their healthcare plan questions and employee handbook questions. "
-        + "Use 'you' to refer to the individual asking the questions even if they ask with 'I'. "
-        + "Answer the following question using only the data provided in the sources below. "
-        + "For tabular information return it as an html table. Do not return markdown format. "
-        + "Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. "
-        + "If you cannot answer using the sources below, say you don't know. Use below example to answer"
-    )
+system_chat_template = (
+    "You are an intelligent assistant helping analyze, translate and extracting information from legal documents from different countries such as Algeria and Morocco, The documents contain different languages Arabic, French and English text, graphs, tables and images. "
+    + "Only answer in English, if the text is in Arabic or French translate it to English and extract the answer"
+    +"Each image source has the file name in the top left corner of the image with coordinates (10,10) pixels and is in the format SourceFileName:<file_name> "
+    + "Each text source starts in a new line and has the file name followed by colon and the actual information "
+    + "Always include the source name from the image or text for each fact you use in the response in the format: [filename] "
+    + "Answer the following question using only the data provided in the sources below. "
+    + "For tabular information return it as an html table. Do not return markdown format. "
+    +"Outputs should use exact contract language unless told specifically to summarize. Outputs in the form of tables may be useful for some prompts."
+    +"Be precise in your answers, even extract the sentences as is from the document."
+    +"It will be important to understand if the output is the exact same language or if it was summarize."
+    +"Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below."
+    +"If asking a clarifying question to the user would help, ask the question."
+    +"For tabular information return it as an html table. Do not return markdown format."
+    +"If the question is not in English, answer in the language used in the question."
+    +"If there are multiple answers then either ask a clarifying question also if there are multiple answers rank all of these answers and provide all the answers ranked from highest confidence to lowest."
+    +"Before you answer a question review the answer and ensure it is correct. Think step by step when you answer an answer to ensure it is correct."
+    +"Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response." 
+    +"Use square brackets to reference the source, e.g. [info1.txt]."
+    +"Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf]."
+    + "Each source has a name followed by colon and the actual data, quote the source name for each piece of data you use in the response. "'For example, if the question is "Who the buyer in the School House PPA" and one of the information sources says "info123: the buyer is Constellation NewEnergy", then answer with the exact answer from source and including it in quotation mark plus include the document [info123]" '
+    +"'It's important to strictly follow the format where the name of the source is in square brackets at the end of the sentence, and only up to the prefix before the colon"
+    +"'If there are multiple sources, cite each one in their own square brackets. For example, use '[info343][ref-76]' and not [info343,ref-76]"
+    +"If you cannot answer using the sources below, say to provide clarifying question or provide an example."
+    +"You can access to the following tools:"
+    + "Use 'you' to refer to the individual asking the questions even if they ask with 'I'."
+    + "Answer the following question using only the data provided in the sources below."
+    + "For tabular information return it as an html table. Do not return markdown format."
+    + "Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response."
+    + "If you cannot answer using the sources below, say you don't know. Use below example to answer"
+    + "The text and image source can be the same file name, don't use the image title when citing the image source, only use the file name as mentioned "
+    + "If you cannot answer using the sources below, say you don't know. Return just the answer without any input texts "
+)
 
-    # shots/sample conversation
-    question = """
-'What is the deductible for the employee plan for a visit to Overlake in Bellevue?'
+# shots/sample conversation
+question = """Could you compare the investment climates of Tunisia and Algeria based on the 2023 Investment Climate Statements, focusing on government incentives, market opportunities, and investment policies?"
 
 Sources:
-info1.txt: deductibles depend on whether you are in-network or out-of-network. In-network deductibles are $500 for employee and $1000 for family. Out-of-network deductibles are $1000 for employee and $2000 for family.
-info2.pdf: Overlake is in-network for the employee plan.
-info3.pdf: Overlake is the name of the area that includes a park and ride near Bellevue.
-info4.pdf: In-network institutions include Overlake, Swedish and others in the region
+[0038 - Algeria - 2023 Investment Climate Statements.pdf]: The government passed a new hydrocarbon law in 2019, improving fiscal terms and contract flexibility in order to attract new international investors.
+[0117 - Tunisia - 2023 Investment Climate Statements.pdf]: The GOT prioritizes attracting and retaining investment, particularly in the underdeveloped interior regions, and reducing unemployment by providing tax breaks, subsidizing social security fee contributions for new hires, and offering investment bonuses.
 """
-    answer = "In-network deductibles are $500 for employee and $1000 for family [info1.txt] and Overlake is in-network for the employee plan [info2.pdf][info4.pdf]."
-
-    def __init__(
+answer = """ Algeria:
+1.	Government Incentives: Offers incentives for investments in non-hydrocarbon sectors to diversify the economy.
+2.	Market Opportunities: Rich in natural resources, particularly in the hydrocarbons sector.
+3.	Investment Policies: Encourages foreign investments with a focus on local manufacturing and service sectors. [0038 - Algeria - 2023 Investment Climate Statements.pdf]
+Tunisia:
+1.	Government Incentives: Provides tax breaks and investment bonuses, especially in underdeveloped regions.
+2.	Market Opportunities: Strategically located for trade, significant in agribusiness and aerospace.
+3.	Investment Policies: While offering incentives, faces challenges in terms of political stability and bureaucracy.
+Refer to '[0038 - Algeria - 2023 Investment Climate Statement.pdf]' for Algeria and Tunisia for detailed information [0117 - Tunisia - 2023 Investment Climate Statements.pdf] ."""
+def __init__(
         self,
         *,
         search_client: SearchClient,

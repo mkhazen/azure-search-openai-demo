@@ -76,9 +76,9 @@ class SearchManager:
                     vector_search_dimensions=1536,
                     vector_search_profile="embedding_config",
                 ),
-                SimpleField(name="category", type="Edm.String", filterable=True, facetable=True),
-                SimpleField(name="sourcepage", type="Edm.String", filterable=True, facetable=True),
-                SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True),
+                SimpleField(name="category", type="Edm.String", searchable=True, filterable=True, facetable=True),
+                SimpleField(name="sourcepage", type="Edm.String", searchable=True, filterable=True, facetable=True),
+                SimpleField(name="sourcefile", type="Edm.String",searchable=True, filterable=True, facetable=True),
             ]
             if self.use_acls:
                 fields.append(

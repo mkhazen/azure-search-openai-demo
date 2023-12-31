@@ -18,10 +18,10 @@ class ChatUser(HttpUser):
                     {
                         "content": random.choice(
                             [
-                                "What is included in my Northwind Health Plus plan that is not in standard?",
-                                "What does a Product Manager do?",
-                                "What happens in a performance review?",
-                                "Whats your whistleblower policy?",
+                                "what are the limits on Foreign Control and Right to private ownership and establishment in Algeria?",
+                                "How many bilateral investment treaties Tunisia has signed?",
+                                "How many members the Supervisory Board in Algeria is composed of",
+                                "What are the Determination of Farm Income in Algeria?",
                             ]
                         ),
                         "role": "user",
@@ -45,10 +45,10 @@ class ChatUser(HttpUser):
                 "messages": [
                     {"content": "What happens in a performance review?", "role": "user"},
                     {
-                        "content": "During a performance review, employees will receive feedback on their performance over the past year, including both successes and areas for improvement. The feedback will be provided by the employee's supervisor and is intended to help the employee develop and grow in their role [employee_handbook-3.pdf]. The review is a two-way dialogue between the employee and their manager, so employees are encouraged to be honest and open during the process [employee_handbook-3.pdf]. The employee will also have the opportunity to discuss their goals and objectives for the upcoming year [employee_handbook-3.pdf]. A written summary of the performance review will be provided to the employee, which will include a rating of their performance, feedback, and goals and objectives for the upcoming year [employee_handbook-3.pdf].",
+                        "content": "Tunisia has signed 62 bilateral investment treaties, of which 39 are in force [0117 - Tunisia - 2023 Investment Climate Statements.pdf].",
                         "role": "assistant",
                     },
-                    {"content": "Does my plan cover eye exams?", "role": "user"},
+                    {"content": "Compare income taxes between Morocco and Tunisia?", "role": "user"},
                 ],
                 "context": {
                     "overrides": {
