@@ -354,9 +354,9 @@ def create_search_index():
             vector_search_dimensions=1536,
             vector_search_configuration="default",
         ),
-        SimpleField(name="category", type="Edm.String", filterable=True, facetable=True),
-        SimpleField(name="sourcepage", type="Edm.String", filterable=True, facetable=True),
-        SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True),
+        SimpleField(name="category", type="Edm.String", searchable=True, filterable=True, facetable=True),
+        SimpleField(name="sourcepage", type="Edm.String", searchable=True, filterable=True, facetable=True),
+        SimpleField(name="sourcefile", type="Edm.String", searchable=True, filterable=True, facetable=True),
     ]
     if args.useacls:
         fields.append(

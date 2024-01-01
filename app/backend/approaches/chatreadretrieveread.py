@@ -226,7 +226,7 @@ If you cannot generate a search query, return just retry.
         return extra_info
 
     async def run_with_streaming(
-        self, history: list[dict[str, str]], overrides: dict[str, Any]
+    self, history: list[dict[str, str]], overrides: dict[str, Any], auth_claims: dict[str, Any]
     ) -> AsyncGenerator[dict, None]:
         extra_info, chat_coroutine = await self.run_until_final_call(history, overrides, should_stream=True)
         yield extra_info
