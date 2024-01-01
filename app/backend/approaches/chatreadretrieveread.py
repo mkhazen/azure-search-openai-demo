@@ -5,13 +5,12 @@ import openai
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
 
-from approaches.approach import Approach
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit
 from text import nonewlines
 
 
-class ChatReadRetrieveReadApproach(Approach):
+class ChatReadRetrieveReadApproach:
     # Chat roles
     SYSTEM = "system"
     USER = "user"
@@ -24,32 +23,31 @@ class ChatReadRetrieveReadApproach(Approach):
     top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion
     (answer) with that prompt.
     """
-    system_message_chat_conversation = """Assistant helps the company employees with their healthcare plan questions, and questions about the employee handbook. Be brief in your answers.
+    system_message_chat_conversation = """Assistant helps the company employees analyze, compare, and extract information from wholesale, retail and standard form contracts and associated notices. Outputs should use exact contract language unless told specifically to summarize. Outputs in the form of tables may be useful for some prompts. Be precise in your answers, even extract the sentences as is from the document. It will be important to understand if the output is the exact same language or if it was summarize.
 Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below. If asking a clarifying question to the user would help, ask the question.
-For tabular information return it as an html table. Do not return markdown format. If the question is not in English, answer in the language used in the question.
+For tabular information return it as an html table. Do not return markdown format. If the question is not in English, answer in the language used in the question. If there are multiple answers then either ask a clarifying question also if there are multiple answers rank all of these answers and provide all the answers ranked from highest confidence to lowest. Before you answer a question review the answer and ensure it is correct. Think step by step when you answer an answer to ensure it is correct. 
 Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. Use square brackets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
 {follow_up_questions_prompt}
 {injected_prompt}
 """
-    follow_up_questions_prompt_content = """Generate three very brief follow-up questions that the user would likely ask next about their healthcare plan and employee handbook.
-Use double angle brackets to reference the questions, e.g. <<Are there exclusions for prescriptions?>>.
+    follow_up_questions_prompt_content = """Generate three very brief follow-up questions that the user would likely ask next about their contracts and notices.
+Use double angle brackets to reference the questions, e.g. <<What is the end date of a contract?>>.
 Try not to repeat questions that have already been asked.
-Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'"""
+Only generate questions and do not generate any text before or after the questions, such as 'Next Questions"""
 
-    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about employee healthcare plans and the employee handbook.
-You have access to Azure Cognitive Search index with 100's of documents.
+    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about contracts and notices.
 Generate a search query based on the conversation and the new question.
-Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
-Do not include any text inside [] or <<>> in the search query terms.
-Do not include any special characters like '+'.
+Include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
 If the question is not in English, translate the question to English before generating the search query.
-If you cannot generate a search query, return just the number 0.
+If you cannot generate a search query, return just retry.
 """
     query_prompt_few_shots = [
-        {"role": USER, "content": "What are my health plans?"},
-        {"role": ASSISTANT, "content": "Show available health plans"},
-        {"role": USER, "content": "does my plan cover cardio?"},
-        {"role": ASSISTANT, "content": "Health plan cardio coverage"},
+               {"role": USER, "content": "What is standard language for Force Majeure in a Wholesale PPA?"},
+        {"role": ASSISTANT, "content": "Quote the exact definition from the contract"},
+        {"role": USER, "content": "What is the end date of the contract?"},
+        {"role": ASSISTANT, "content": "Describe contract start and contract terms and this is how to get to the end date"},
+        {"role": USER, "content": "What is the energy payment Rate?"},
+        {"role": ASSISTANT, "content": "Quote the exact definition from the contract"}
     ]
 
     def __init__(
@@ -74,17 +72,14 @@ If you cannot generate a search query, return just the number 0.
         self.chatgpt_token_limit = get_token_limit(chatgpt_model)
 
     async def run_until_final_call(
-        self,
-        history: list[dict[str, str]],
-        overrides: dict[str, Any],
-        auth_claims: dict[str, Any],
-        should_stream: bool = False,
+        self, history: list[dict[str, str]], overrides: dict[str, Any], should_stream: bool = False
     ) -> tuple:
         has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
-        top = overrides.get("top", 3)
-        filter = self.build_filter(overrides, auth_claims)
+        top = overrides.get("top") or 3
+        exclude_category = overrides.get("exclude_category") or None
+        filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
         user_query_request = "Generate search query for: " + history[-1]["user"]
 
@@ -97,7 +92,7 @@ If you cannot generate a search query, return just the number 0.
                     "properties": {
                         "search_query": {
                             "type": "string",
-                            "description": "Query string to retrieve documents from azure search eg: 'Health care plan'",
+                            "description": "Query string to retrieve documents from azure search eg: 'What is standard language for Force Majeure in a Wholesale PPA?'",
                         }
                     },
                     "required": ["search_query"],
@@ -199,8 +194,10 @@ If you cannot generate a search query, return just the number 0.
             system_message,
             self.chatgpt_model,
             history,
+            # Model does not handle lengthy system messages well.
+            # Moved sources to latest user conversation to solve follow up questions prompt.
             history[-1]["user"] + "\n\nSources:\n" + content,
-            max_tokens=self.chatgpt_token_limit,  # Model does not handle lengthy system messages well. Moving sources to latest user conversation to solve follow up questions prompt.
+            max_tokens=self.chatgpt_token_limit,
         )
         msg_to_display = "\n\n".join([str(message) for message in messages])
 
@@ -221,23 +218,17 @@ If you cannot generate a search query, return just the number 0.
         )
         return (extra_info, chat_coroutine)
 
-    async def run_without_streaming(
-        self, history: list[dict[str, str]], overrides: dict[str, Any], auth_claims: dict[str, Any]
-    ) -> dict[str, Any]:
-        extra_info, chat_coroutine = await self.run_until_final_call(
-            history, overrides, auth_claims, should_stream=False
-        )
+    async def run_without_streaming(self, history: list[dict[str, str]], overrides: dict[str, Any]) -> dict[str, Any]:
+        extra_info, chat_coroutine = await self.run_until_final_call(history, overrides, should_stream=False)
         chat_resp = await chat_coroutine
         chat_content = chat_resp.choices[0].message.content
         extra_info["answer"] = chat_content
         return extra_info
 
     async def run_with_streaming(
-        self, history: list[dict[str, str]], overrides: dict[str, Any], auth_claims: dict[str, Any]
+        self, history: list[dict[str, str]], overrides: dict[str, Any]
     ) -> AsyncGenerator[dict, None]:
-        extra_info, chat_coroutine = await self.run_until_final_call(
-            history, overrides, auth_claims, should_stream=True
-        )
+        extra_info, chat_coroutine = await self.run_until_final_call(history, overrides, should_stream=True)
         yield extra_info
         async for event in await chat_coroutine:
             # "2023-07-01-preview" API version has a bug where first response has empty choices
@@ -255,7 +246,8 @@ If you cannot generate a search query, return just the number 0.
     ) -> list:
         message_builder = MessageBuilder(system_prompt, model_id)
 
-        # Add examples to show the chat what responses we want. It will try to mimic any responses and make sure they match the rules laid out in the system message.
+        # Add examples to show the chat what responses we want.
+        # It will try to mimic any responses and make sure they match the rules laid out in the system message.
         for shot in few_shots:
             message_builder.append_message(shot.get("role"), shot.get("content"))
 

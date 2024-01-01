@@ -56,7 +56,7 @@ args = argparse.Namespace(
 adls_gen2_creds = None
 storage_creds = None
 
-MAX_SECTION_LENGTH = 1000
+MAX_SECTION_LENGTH = 2500
 SENTENCE_SEARCH_LIMIT = 100
 SECTION_OVERLAP = 100
 

@@ -9,11 +9,11 @@ export type ExampleModel = {
 
 const EXAMPLES: ExampleModel[] = [
     {
-        text: "What is included in my Northwind Health Plus plan that is not in standard?",
-        value: "What is included in my Northwind Health Plus plan that is not in standard?"
+        text: "What is standard language for Force Majeure in a Wholesale PPA?",
+        value: "What is standard language for Force Majeure in a Wholesale PPA?"
     },
-    { text: "What happens in a performance review?", value: "What happens in a performance review?" },
-    { text: "What does a Product Manager do?", value: "What does a Product Manager do?" }
+    { text: "Who the buyer in the School House PPA", value: "Who the buyer in the School House PPA?" },
+    { text: "What is the energy payment Rate in the School House PPA?", value: "What is the energy payment Rate in the School House PPA??" }
 ];
 
 interface Props {

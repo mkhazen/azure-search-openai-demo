@@ -27,16 +27,25 @@ class ReadRetrieveReadApproach(AskApproach):
     """
 
     template_prefix = (
-        "You are an intelligent assistant helping Contoso Inc employees with their healthcare plan questions and employee handbook questions. "
-        "Answer the question using only the data provided in the information sources below. "
-        "For tabular information return it as an html table. Do not return markdown format. "
+        "You are an Assistant thar helps the company employees analyze, compare, and extract information from wholesale, retail and standard form contracts and associated notices." 
+        "Outputs should use exact contract language unless told specifically to summarize. Outputs in the form of tables may be useful for some prompts."
+        "Be precise in your answers, even extract the sentences as is from the document."
+        "It will be important to understand if the output is the exact same language or if it was summarize."
+        "Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below."
+        "If asking a clarifying question to the user would help, ask the question."
+        "For tabular information return it as an html table. Do not return markdown format."
+        "If the question is not in English, answer in the language used in the question."
+        "If there are multiple answers then either ask a clarifying question also if there are multiple answers rank all of these answers and provide all the answers ranked from highest confidence to lowest."
+        "Before you answer a question review the answer and ensure it is correct. Think step by step when you answer an answer to ensure it is correct."
+        "Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response." 
+        "Use square brackets to reference the source, e.g. [info1.txt]."
+        "Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf]."
         "Each source has a name followed by colon and the actual data, quote the source name for each piece of data you use in the response. "
-        'For example, if the question is "What color is the sky?" and one of the information sources says "info123: the sky is blue whenever it\'s not cloudy", then answer with "The sky is blue [info123]" '
-        'It\'s important to strictly follow the format where the name of the source is in square brackets at the end of the sentence, and only up to the prefix before the colon (":"). '
-        'If there are multiple sources, cite each one in their own square brackets. For example, use "[info343][ref-76]" and not "[info343,ref-76]". '
-        "Never quote tool names as sources."
-        "If you cannot answer using the sources below, say that you don't know. "
-        "\n\nYou can access to the following tools:"
+        "For example, if the question is 'Who the buyer in the School House PPA' and one of the information sources says 'info123: the buyer is Constellation NewEnergy', then answer with the exact answer from source and including it in quotation mark plus include the document [info123]" 
+        "It is important to strictly follow the format where the name of the source is in square brackets at the end of the sentence, and only up to the prefix before the colon"
+        "If there are multiple sources, cite each one in their own square brackets. For example, use '[info343][ref-76]' and not [info343,ref-76]"
+        "If you cannot answer using the sources below, say to provide clarifying question or provide an example."
+        "You can access to the following tools:"
     )
 
     template_suffix = """
@@ -46,7 +55,7 @@ Question: {input}
 
 Thought: {agent_scratchpad}"""
 
-    CognitiveSearchToolDescription = "useful for searching the Microsoft employee benefits information such as healthcare plans, retirement plans, etc."
+    CognitiveSearchToolDescription = "useful for searching the Contract and notices etc."
 
     def __init__(
         self,
@@ -68,12 +77,13 @@ Thought: {agent_scratchpad}"""
         self.content_field = content_field
         self.openai_host = openai_host
 
-    async def retrieve(self, query_text: str, overrides: dict[str, Any], auth_claims: dict[str, Any]) -> Any:
+    async def retrieve(self, query_text: str, overrides: dict[str, Any]) -> Any:
         has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
-        top = overrides.get("top", 3)
-        filter = self.build_filter(overrides, auth_claims)
+        top = overrides.get("top") or 3
+        exclude_category = overrides.get("exclude_category") or None
+        filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
         # If retrieval mode includes vectors, compute an embedding for the query
         if has_vector:
@@ -121,12 +131,12 @@ Thought: {agent_scratchpad}"""
         content = "\n".join(results)
         return results, content
 
-    async def run(self, q: str, overrides: dict[str, Any], auth_claims: dict[str, Any]) -> dict[str, Any]:
+    async def run(self, q: str, overrides: dict[str, Any]) -> dict[str, Any]:
         retrieve_results = None
 
         async def retrieve_and_store(q: str) -> Any:
             nonlocal retrieve_results
-            retrieve_results, content = await self.retrieve(q, overrides, auth_claims)
+            retrieve_results, content = await self.retrieve(q, overrides)
             return content
 
         # Use to capture thought process during iterations
